@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PixelKey Reveal</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at top,#20285c,#070916 55%);color:#fff;font-family:Arial,sans-serif}.box{text-align:center;width:min(850px,100%)}.image{position:relative;display:inline-block;max-width:100%;border-radius:22px;overflow:hidden}.image img{display:block;max-width:100%;max-height:68vh}.hot{position:absolute;width:12%;aspect-ratio:1;transform:translate(-50%,-50%);border:0;background:transparent}.modal,.access{position:fixed;inset:0;display:none;place-items:center;padding:20px;background:#02040bea;z-index:10}.on{display:grid}.card{width:min(520px,100%);background:#10182b;border:1px solid #304166;border-radius:24px;padding:27px}.card input,.btn{width:100%;padding:14px;border-radius:12px;margin:7px 0}.card input{background:#070c18;border:1px solid #304166;color:#fff}.btn{border:0;background:linear-gradient(90deg,#3de6d4,#8178ff);font-weight:900}.err{min-height:22px;color:#ff7690}.access{background:radial-gradient(circle,#063b39,#02050d 62%);overflow:auto}.secret{white-space:pre-wrap;text-align:left;line-height:1.7;margin:14px 0}.chat{display:none;text-align:left;margin-top:12px}.chat.on{display:block}.msgs{height:250px;overflow:auto;background:#050a15;border-radius:14px;padding:9px}.bubble{max-width:80%;padding:9px;margin:6px 0;background:#121b31;border-radius:13px}.bubble.me{margin-left:auto;background:#123b42}.send{display:grid;grid-template-columns:1fr auto;gap:6px}.sig{color:#55eee0;font-weight:900;margin-top:15px}.loading{color:#7cf8ed}
+</style></head><body>
+<main class="box"><b style="color:#3de6d4">◈ PIXELKEY</b><h1 id="title">Loading secure reveal…</h1><p id="hint" class="loading">Connecting securely</p><div class="image"><img id="img"><button class="hot" id="hot"></button></div><div class="sig">APOORV SINGHAL</div></main>
+<div class="modal" id="modal"><div class="card"><h2>HIDDEN SIGNAL DETECTED</h2><div style="position:relative"><input id="p" type="password" placeholder="Password" autocapitalize="none" autocorrect="off"><button id="eye" style="position:absolute;right:9px;top:13px;width:38px;height:34px">👁</button></div><button class="btn" id="unlock">UNLOCK</button><div class="err" id="err"></div></div></div>
+<div class="access" id="access"><div class="card"><h1 style="color:#5dffdc">ACCESS GRANTED</h1><div class="secret" id="secret"></div><button class="btn" id="enter">💬 ENTER SECRET CHAT →</button><section class="chat" id="chat"><div id="presence">● CONNECTING</div><div id="roomid" style="font-size:9px;color:#7f8daf;margin-bottom:6px"></div><div class="msgs" id="msgs"></div><div id="typing" style="height:18px;color:#58e8d8;font-size:10px"></div><div class="send"><input id="msg" maxlength="700"><button class="btn" id="send">SEND</button></div></section><div class="sig">◈ PIXELKEY • APOORV SINGHAL</div></div></div>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import{getAuth,signInAnonymously}from"https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+import{getFirestore,doc,getDoc,updateDoc,collection,addDoc,onSnapshot,query,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+const cfg={apiKey:"AIzaSyDYpFhkBcpYqo7t1TDV_z5PKxzyb1pT4XY",authDomain:"pixel-key.firebaseapp.com",projectId:"pixel-key",storageBucket:"pixel-key.firebasestorage.app",messagingSenderId:"544289151814",appId:"1:544289151814:web:9ff9bf30342e1e7ab2a347"};
+const app=initializeApp(cfg),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s);
+const id=new URLSearchParams(location.search).get('id');let R=null,uid=null,rr=null,joined=false;
+const te=new TextEncoder(),td=new TextDecoder(),ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)),bb=a=>{let s='',u=new Uint8Array(a);for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)};
+async function ck(){return crypto.subtle.importKey('raw',await crypto.subtle.digest('SHA-256',te.encode('PixelKey-chat-v1:'+R.token)),{name:'AES-GCM'},false,['encrypt','decrypt'])}
+async function ce(t){const iv=crypto.getRandomValues(new Uint8Array(12)),k=await ck(),ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,te.encode(t));return{cipher:bb(ct),iv:bb(iv),v:1}}
+async function cd(d){if(!d.cipher||!d.iv)return d.text||'';const k=await ck(),pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub(d.iv)},k,ub(d.cipher));return td.decode(pt)}
+async function load(){
+ if(!id)throw Error('Missing reveal ID');
+ uid=(await signInAnonymously(auth)).user.uid;
+ const s=await getDoc(doc(db,'reveals',id));if(!s.exists())throw Error('Reveal not found');
+ R=s.data();if(Date.now()>=R.expiresAt)throw Error('Reveal expired');
+ $('#title').textContent=R.title;$('#hint').textContent=R.hint;$('#hint').className='';$('#img').src=R.imageData;$('#hot').style.left=R.x+'%';$('#hot').style.top=R.y+'%';
+}
+$('#hot').onclick=()=>{$('#modal').classList.add('on');$('#p').focus()};
+$('#eye').onclick=()=>{$('#p').type=$('#p').type==='password'?'text':'password'};
+let tries=0;
+$('#unlock').onclick=async()=>{try{
+ const D=R.locked,km=await crypto.subtle.importKey('raw',te.encode(String($('#p').value).normalize('NFC')),'PBKDF2',false,['deriveKey']);
+ const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:ub(D.salt),iterations:250000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+ const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub(D.iv)},key,ub(D.cipher));
+ $('#modal').classList.remove('on');$('#access').classList.add('on');$('#secret').textContent=td.decode(plain);
+}catch(e){tries++;$('#p').value='';const l=4-tries;$('#err').textContent=l>0?'ACCESS DENIED • '+l+' ATTEMPTS REMAINING':'SECURITY LOCKED';if(tries>=4){$('#p').disabled=true;$('#unlock').disabled=true}}};
+async function join(){
+ if(joined)return;rr=doc(db,'rooms',R.roomId);let s=null;
+ for(let n=0;n<14;n++){s=await getDoc(rr);if(s.exists())break;await new Promise(r=>setTimeout(r,500))}
+ if(!s||!s.exists())throw Error('ROOM NOT READY');
+ const d=s.data();if(d.token!==R.token)throw Error('INVALID ROOM');
+ const members=d.members||[];if(!members.includes(uid)){if(members.length>=2)throw Error('ROOM FULL');await updateDoc(rr,{members:[...members,uid]})}
+ joined=true;$('#chat').classList.add('on');$('#enter').style.display='none';$('#roomid').textContent='ROOM • '+R.roomId;
+ onSnapshot(query(collection(db,'rooms',R.roomId,'messages'),orderBy('clientTime','asc')),async s=>{const b=$('#msgs');b.innerHTML='';for(const z of s.docs){const d=z.data(),e=document.createElement('div');e.className='bubble'+(d.sender===uid?' me':'');try{e.textContent=await cd(d)}catch(_){e.textContent='[Unable to decrypt]'}b.appendChild(e)}b.scrollTop=b.scrollHeight});
+ onSnapshot(rr,s=>{if(!s.exists())return;const d=s.data();$('#presence').textContent=(d.members||[]).length>1?'● PARTNER CONNECTED':'● WAITING FOR PARTNER';$('#typing').textContent=d.typingBy&&d.typingBy!==uid?'Partner is typing •••':''});
+}
+$('#enter').onclick=()=>join().catch(e=>alert(e.message));
+$('#send').onclick=async()=>{const i=$('#msg'),v=i.value.trim();if(!v)return;try{if(!joined)await join();const x=await ce(v);i.value='';await addDoc(collection(db,'rooms',R.roomId,'messages'),{sender:uid,cipher:x.cipher,iv:x.iv,v:1,createdAt:serverTimestamp(),clientTime:Date.now()})}catch(e){alert('SEND ERROR: '+e.message)}};
+load().catch(e=>{$('#title').textContent='Unable to open reveal';$('#hint').textContent=e.message});
+</script></body></html>
